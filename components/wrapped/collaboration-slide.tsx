@@ -42,7 +42,6 @@ export function CollaborationSlide({ stats }: CollaborationSlideProps) {
           <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">Collaboration Footprint</h2>
         </div>
 
-        {/* Collaboration style badge */}
         <motion.div
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -66,7 +65,6 @@ export function CollaborationSlide({ stats }: CollaborationSlideProps) {
           <p className="text-[10px] sm:text-xs md:text-sm text-muted-foreground">{collaborationStyle.description}</p>
         </motion.div>
 
-        {/* Stats grid */}
         <div className="grid grid-cols-2 gap-2 sm:gap-3 md:gap-4 mb-3 sm:mb-4">
           <motion.div
             initial={{ x: -20, opacity: 0 }}
@@ -172,7 +170,6 @@ export function CollaborationSlide({ stats }: CollaborationSlideProps) {
           </motion.div>
         </div>
 
-        {/* Summary insights */}
         <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}

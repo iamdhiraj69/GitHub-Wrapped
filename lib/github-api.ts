@@ -346,47 +346,86 @@ function analyzeEvents(events: GitHubEvent[], year: number) {
   const yearEvents = events.filter((e) => new Date(e.created_at).getFullYear() === year)
 
   let commits = 0
-  let prsOpened = 0
-  let prsMerged = 0
-  let issuesOpened = 0
-  let issuesClosed = 0
-  let reviews = 0
 
   yearEvents.forEach((event) => {
-    switch (event.type) {
-      case "PushEvent":
-        commits += (event.payload as { commits?: unknown[] }).commits?.length || 1
-        break
-      case "PullRequestEvent":
-        const prAction = (event.payload as { action?: string }).action
-        if (prAction === "opened") prsOpened++
-        if (prAction === "closed" && (event.payload as { pull_request?: { merged?: boolean } }).pull_request?.merged) {
-          prsMerged++
-        }
-        break
-      case "IssuesEvent":
-        const issueAction = (event.payload as { action?: string }).action
-        if (issueAction === "opened") issuesOpened++
-        if (issueAction === "closed") issuesClosed++
-        break
-      case "PullRequestReviewEvent":
-        reviews++
-        break
+    if (event.type === "PushEvent") {
+      commits += (event.payload as { commits?: unknown[] }).commits?.length || 1
     }
   })
 
-  return { commits, prsOpened, prsMerged, issuesOpened, issuesClosed, reviews }
+  return { commits }
+}
+
+// Fetch accurate PR/Issue stats using GitHub Search API (full year data)
+async function fetchCollaborationStats(username: string, year: number) {
+  const startDate = `${year}-01-01`
+  const endDate = `${year}-12-31`
+
+  // Search queries for accurate counts
+  const queries = {
+    prsOpened: `author:${username} type:pr created:${startDate}..${endDate}`,
+    prsMerged: `author:${username} type:pr merged:${startDate}..${endDate}`,
+    issuesOpened: `author:${username} type:issue created:${startDate}..${endDate}`,
+    issuesClosed: `author:${username} type:issue closed:${startDate}..${endDate}`,
+    reviews: `reviewed-by:${username} type:pr created:${startDate}..${endDate}`,
+  }
+
+  const counts = {
+    prsOpened: 0,
+    prsMerged: 0,
+    issuesOpened: 0,
+    issuesClosed: 0,
+    reviews: 0,
+  }
+
+  // Fetch counts in parallel
+  const fetchCount = async (query: string): Promise<number> => {
+    try {
+      const response = await fetch(
+        `${GITHUB_API_BASE}/search/issues?q=${encodeURIComponent(query)}&per_page=1`,
+        {
+          headers: {
+            Accept: "application/vnd.github.v3+json",
+          },
+        }
+      )
+      if (response.ok) {
+        const data = await response.json()
+        return data.total_count || 0
+      }
+    } catch (error) {
+      console.error("Search API error:", error)
+    }
+    return 0
+  }
+
+  const [prsOpened, prsMerged, issuesOpened, issuesClosed, reviews] = await Promise.all([
+    fetchCount(queries.prsOpened),
+    fetchCount(queries.prsMerged),
+    fetchCount(queries.issuesOpened),
+    fetchCount(queries.issuesClosed),
+    fetchCount(queries.reviews),
+  ])
+
+  counts.prsOpened = prsOpened
+  counts.prsMerged = prsMerged
+  counts.issuesOpened = issuesOpened
+  counts.issuesClosed = issuesClosed
+  counts.reviews = reviews
+
+  return counts
 }
 
 export async function fetchWrappedStats(username: string, year?: number): Promise<WrappedStats> {
   const targetYear = year || new Date().getFullYear()
 
   // Fetch data in parallel
-  const [user, repos, events, calendar] = await Promise.all([
+  const [user, repos, events, calendar, collaborationStats] = await Promise.all([
     fetchUser(username),
     fetchUserRepos(username, targetYear),
     fetchUserEvents(username),
     fetchContributionCalendar(username, targetYear),
+    fetchCollaborationStats(username, targetYear),
   ])
 
   // Get language stats
@@ -423,10 +462,10 @@ export async function fetchWrappedStats(username: string, year?: number): Promis
     totalStars,
     totalForks,
     totalCommits: eventStats.commits,
-    pullRequestsOpened: eventStats.prsOpened,
-    pullRequestsMerged: eventStats.prsMerged,
-    issuesOpened: eventStats.issuesOpened,
-    issuesClosed: eventStats.issuesClosed,
-    codeReviews: eventStats.reviews,
+    pullRequestsOpened: collaborationStats.prsOpened,
+    pullRequestsMerged: collaborationStats.prsMerged,
+    issuesOpened: collaborationStats.issuesOpened,
+    issuesClosed: collaborationStats.issuesClosed,
+    codeReviews: collaborationStats.reviews,
   }
 }
