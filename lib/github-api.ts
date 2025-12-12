@@ -357,25 +357,17 @@ function analyzeEvents(events: GitHubEvent[], year: number) {
 }
 
 // Fetch accurate PR/Issue stats using GitHub Search API (full year data)
-async function fetchCollaborationStats(username: string, year: number) {
+async function fetchCollaborationStats(username: string, year: number, events: GitHubEvent[]) {
   const startDate = `${year}-01-01`
   const endDate = `${year}-12-31`
 
-  // Search queries for accurate counts
+  // Search queries using correct syntax (is: instead of type:)
   const queries = {
-    prsOpened: `author:${username} type:pr created:${startDate}..${endDate}`,
-    prsMerged: `author:${username} type:pr merged:${startDate}..${endDate}`,
-    issuesOpened: `author:${username} type:issue created:${startDate}..${endDate}`,
-    issuesClosed: `author:${username} type:issue closed:${startDate}..${endDate}`,
-    reviews: `reviewed-by:${username} type:pr created:${startDate}..${endDate}`,
-  }
-
-  const counts = {
-    prsOpened: 0,
-    prsMerged: 0,
-    issuesOpened: 0,
-    issuesClosed: 0,
-    reviews: 0,
+    prsOpened: `author:${username} is:pr created:${startDate}..${endDate}`,
+    prsMerged: `author:${username} is:pr is:merged merged:${startDate}..${endDate}`,
+    issuesOpened: `author:${username} is:issue created:${startDate}..${endDate}`,
+    issuesClosed: `author:${username} is:issue is:closed closed:${startDate}..${endDate}`,
+    reviews: `reviewed-by:${username} is:pr created:${startDate}..${endDate}`,
   }
 
   // Fetch counts in parallel
@@ -407,26 +399,58 @@ async function fetchCollaborationStats(username: string, year: number) {
     fetchCount(queries.reviews),
   ])
 
-  counts.prsOpened = prsOpened
-  counts.prsMerged = prsMerged
-  counts.issuesOpened = issuesOpened
-  counts.issuesClosed = issuesClosed
-  counts.reviews = reviews
+  // Fallback: Use events API data if search returns 0 (events API has last 90 days)
+  const yearEvents = events.filter((e) => new Date(e.created_at).getFullYear() === year)
+  
+  let eventPrsOpened = 0
+  let eventPrsMerged = 0
+  let eventIssuesOpened = 0
+  let eventIssuesClosed = 0
+  let eventReviews = 0
 
-  return counts
+  yearEvents.forEach((event) => {
+    switch (event.type) {
+      case "PullRequestEvent":
+        const prAction = (event.payload as { action?: string }).action
+        if (prAction === "opened") eventPrsOpened++
+        if (prAction === "closed" && (event.payload as { pull_request?: { merged?: boolean } }).pull_request?.merged) {
+          eventPrsMerged++
+        }
+        break
+      case "IssuesEvent":
+        const issueAction = (event.payload as { action?: string }).action
+        if (issueAction === "opened") eventIssuesOpened++
+        if (issueAction === "closed") eventIssuesClosed++
+        break
+      case "PullRequestReviewEvent":
+        eventReviews++
+        break
+    }
+  })
+
+  // Use the higher value between search API and events API
+  return {
+    prsOpened: Math.max(prsOpened, eventPrsOpened),
+    prsMerged: Math.max(prsMerged, eventPrsMerged),
+    issuesOpened: Math.max(issuesOpened, eventIssuesOpened),
+    issuesClosed: Math.max(issuesClosed, eventIssuesClosed),
+    reviews: Math.max(reviews, eventReviews),
+  }
 }
 
 export async function fetchWrappedStats(username: string, year?: number): Promise<WrappedStats> {
   const targetYear = year || new Date().getFullYear()
 
-  // Fetch data in parallel
-  const [user, repos, events, calendar, collaborationStats] = await Promise.all([
+  // Fetch basic data in parallel
+  const [user, repos, events, calendar] = await Promise.all([
     fetchUser(username),
     fetchUserRepos(username, targetYear),
     fetchUserEvents(username),
     fetchContributionCalendar(username, targetYear),
-    fetchCollaborationStats(username, targetYear),
   ])
+
+  // Fetch collaboration stats (uses events for fallback)
+  const collaborationStats = await fetchCollaborationStats(username, targetYear, events)
 
   // Get language stats
   const languages = await fetchLanguageStats(username, repos)
