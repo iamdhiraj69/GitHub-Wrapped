@@ -23,6 +23,27 @@ export const metadata: Metadata = {
     ],
     apple: "/apple-icon.png",
   },
+  openGraph: {
+    title: "GitHub Wrapped",
+    description: "Your year on GitHub, wrapped. See your contributions, top repositories, and coding stats.",
+    siteName: "GitHub Wrapped",
+    type: "website",
+    locale: "en_US",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "GitHub Wrapped - Your year on GitHub",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "GitHub Wrapped",
+    description: "Your year on GitHub, wrapped. See your contributions, top repositories, and coding stats.",
+    images: ["/og-image.png"],
+  },
 }
 
 export default function RootLayout({
