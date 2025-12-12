@@ -370,7 +370,7 @@ async function fetchCollaborationStats(username: string, year: number, events: G
     reviews: `reviewed-by:${username} is:pr created:${startDate}..${endDate}`,
   }
 
-  // Fetch counts in parallel
+  // Fetch count with rate limit handling
   const fetchCount = async (query: string): Promise<number> => {
     try {
       const response = await fetch(
@@ -385,21 +385,35 @@ async function fetchCollaborationStats(username: string, year: number, events: G
         const data = await response.json()
         return data.total_count || 0
       }
+      // If rate limited, return 0 and use fallback
+      if (response.status === 403) {
+        console.warn("Search API rate limited, using events fallback")
+        return 0
+      }
     } catch (error) {
       console.error("Search API error:", error)
     }
     return 0
   }
 
-  const [prsOpened, prsMerged, issuesOpened, issuesClosed, reviews] = await Promise.all([
-    fetchCount(queries.prsOpened),
-    fetchCount(queries.prsMerged),
-    fetchCount(queries.issuesOpened),
-    fetchCount(queries.issuesClosed),
-    fetchCount(queries.reviews),
-  ])
+  // Fetch with small delays to avoid rate limiting (search API is limited to 30/min)
+  let prsOpened = 0, prsMerged = 0, issuesOpened = 0, issuesClosed = 0, reviews = 0
+  
+  try {
+    prsOpened = await fetchCount(queries.prsOpened)
+    await new Promise(r => setTimeout(r, 100))
+    prsMerged = await fetchCount(queries.prsMerged)
+    await new Promise(r => setTimeout(r, 100))
+    issuesOpened = await fetchCount(queries.issuesOpened)
+    await new Promise(r => setTimeout(r, 100))
+    issuesClosed = await fetchCount(queries.issuesClosed)
+    await new Promise(r => setTimeout(r, 100))
+    reviews = await fetchCount(queries.reviews)
+  } catch (error) {
+    console.error("Failed to fetch collaboration stats from Search API:", error)
+  }
 
-  // Fallback: Use events API data if search returns 0 (events API has last 90 days)
+  // Fallback: Use events API data (events API has last 90 days)
   const yearEvents = events.filter((e) => new Date(e.created_at).getFullYear() === year)
   
   let eventPrsOpened = 0
