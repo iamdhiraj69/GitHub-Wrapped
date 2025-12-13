@@ -179,7 +179,7 @@ export function FinalSlide({ stats }: FinalSlideProps) {
 
         <div className="flex flex-col gap-2 sm:gap-3">
           {/* Download button */}
-          <button
+          {/* <button
             onClick={handleDownload}
             disabled={isGenerating}
             className="w-full py-2.5 sm:py-3 px-4 bg-[#238636] hover:bg-[#2ea043] active:bg-[#3ab64a] disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-md transition-colors flex items-center justify-center gap-2 text-sm touch-manipulation"
@@ -197,9 +197,9 @@ export function FinalSlide({ stats }: FinalSlideProps) {
               </svg>
             )}
             Download Image
-          </button>
+          </button> */}
 
-          <div className="grid grid-cols-3 gap-2">
+          <div className="flex justify-center gap-2">
             <button
               onClick={handleShareToX}
               className="py-2.5 sm:py-3 px-2 sm:px-3 bg-[#21262d] hover:bg-[#30363d] active:bg-[#3d444d] text-foreground font-medium rounded-md transition-colors flex items-center justify-center gap-1.5 text-xs sm:text-sm touch-manipulation"
@@ -211,7 +211,7 @@ export function FinalSlide({ stats }: FinalSlideProps) {
               <span className="hidden xs:inline sm:inline">Post</span>
             </button>
 
-            <button
+            {/* <button
               onClick={handleShareToInstagram}
               disabled={isGenerating}
               className="py-2.5 sm:py-3 px-2 sm:px-3 bg-[#21262d] hover:bg-[#30363d] active:bg-[#3d444d] disabled:opacity-50 text-foreground font-medium rounded-md transition-colors flex items-center justify-center gap-1.5 text-xs sm:text-sm touch-manipulation"
@@ -246,7 +246,7 @@ export function FinalSlide({ stats }: FinalSlideProps) {
                 </svg>
               )}
               <span className="hidden xs:inline sm:inline">Share</span>
-            </button>
+            </button> */}
           </div>
         </div>
 
